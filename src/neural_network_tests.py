@@ -12,16 +12,16 @@ import numpy as np
 def build_network():
     model = Sequential()
 
-    model.add(Convolution2D(32, 3, 3, input_shape=(150, 300, 3), activation='relu'))
+    model.add(Convolution2D(16, 3, 3, input_shape=(150, 300, 3), activation='relu'))
 
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Convolution2D(64, (3, 3), activation='relu'))
 
     model.add(Flatten())
 
-    model.add(Dense(output_dim = 128, activation= 'relu'))
-    model.add(Dense(output_dim= 1, activation = 'sigmoid'))
+    #model.add(Dense(output_dim = 128, activation= 'relu'))
+    model.add(Dense(output_dim= 1, activation = 'softmax'))
 
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
     model.save("../files/neural_networks/jooj")
 
 
@@ -40,7 +40,7 @@ def get_images(value):
     return out_images
 
 
-#build_network()
+build_network()
 
 print("\nLoading database...\n")
 print("positive images...")
@@ -78,16 +78,18 @@ testing_labels = np.concatenate([labels[positives_to_train:nb_of_positives], lab
 
 model.fit(training_samples,training_labels)
 
-
+print(training_labels[0])
 print("Network trained.")
 
 answer = model.predict(testing_samples)
 
-print(answer)
-print("on voulait")
-print(testing_labels)
-
+print(labels)
+#print(answer)
+#print("we wnated")
+#print(testing_labels)
+"""
 error = sum( abs(max(answer[i])-testing_labels[i]) for i in range(len(answer)) )
 
 
 print("Erreur de : ", float(error)/float(nb_of_samples-(positives_to_train + negatives_to_train))*100, "%")
+"""
