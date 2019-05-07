@@ -7,14 +7,17 @@ def run():
 
     while cap.isOpened():
 
-        ret, image = cap.read()
+        ret, begin = cap.read()
 
-        # todo fix the fact that the resolution of our image is divided by two
+
         # the imaged is re-sized at scale = 0.5, so that the computation is faster
-        image = cv.resize(image, None, fx=0.5, fy=0.5)
+        image = begin.copy()
+        image = cv.resize(image, None, fx=0.25, fy=0.25)
 
         # color conversion
         imageTrans = cv.cvtColor(image, cv.COLOR_BGR2YCR_CB)
+        mask = np.zeros((len(imageTrans), len(imageTrans[0]), len(imageTrans[0][0])))
+
 
         # histogram normalization
         hist, bins = np.histogram(imageTrans.flatten(), 256, [0,256])
@@ -37,17 +40,20 @@ def run():
         _, img2 = cv.threshold(img2, 127, 255, cv.THRESH_BINARY)
 
         # filters noise
-        kernel = np.ones((40,40), np.uint8)
+        kernel = np.ones((20,20), np.uint8)
         img2 = cv.erode(img2, kernel, 5)
 
         contours, _ = cv.findContours(img2, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-        cv.drawContours(image, contours, -1, (255,255,255), 3)
-        image = cv.resize(image, None, fx=2, fy=2, interpolation=cv.INTER_CUBIC)
+        cv.drawContours(mask, contours, -1, (255,255,255), 1)
+        mask = cv.resize(mask, None, fx=4, fy=4, interpolation=cv.INTER_CUBIC)
 
+        mask = np.uint8(mask)
+
+        begin = cv.add(begin, mask)
         cv.namedWindow("Horizon detection")
         #frame = np.hstack((imgInt, img2))
-        cv.imshow("Horizon detection", image)
+        cv.imshow("Horizon detection", begin)
 
         if cv.waitKey(1) & 0xFF == ord('q'):
             break
