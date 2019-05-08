@@ -12,17 +12,21 @@ import numpy as np
 def build_network():
     model = Sequential()
 
-    model.add(Convolution2D(16, 3, 3, input_shape=(150, 300, 3), activation='relu'))
+    model.add(Convolution2D(filters=64, kernel_size=[3, 3], input_shape=(150, 300, 1), padding='same', activation='relu'))
 
-    model.add(Convolution2D(64, (3, 3), activation='relu'))
+    model.add(Convolution2D(filters=64, kernel_size=[3, 3], activation='relu'))
+
+    model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
 
     model.add(Flatten())
 
-    #model.add(Dense(output_dim = 128, activation= 'relu'))
-    model.add(Dense(output_dim= 1, activation = 'softmax'))
+    model.add(Dense(units = 128, activation= 'relu'))
+    model.add(Dense(units=1, activation = 'softmax'))
 
-    model.compile(optimizer='sgd', loss='mse', metrics=['accuracy'])
-    model.save("../files/neural_networks/jooj")
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    #model.save("../files/neural_networks/jooj")
+
+    return model
 
 
 def get_images(value):
@@ -33,14 +37,30 @@ def get_images(value):
     for line in file:
         paths.append(line)
 
-    out_images = np.zeros((len(paths), 150, 300, 3))
-    for i in range(len(paths)):
-        out_images[i] = cv.imread(paths[i])
+    nb_of_images_to_read = 20 #len(paths)
+
+    out_images = np.zeros((nb_of_images_to_read, 150, 300, 1))
+
+    for i in range(nb_of_images_to_read):
+        out_images[i] = cv.imread(paths[i], 0)
 
     return out_images
 
 
-build_network()
+model = build_network()
+qtt = 20
+
+samples = np.ones((qtt, 150, 300, 1))
+samples = np.concatenate([samples, np.zeros((qtt, 150, 300, 1))])
+
+grades = [1] * qtt
+for i in range(qtt):
+    grades.append(0)
+
+model.fit(samples, grades)
+
+"""
+model = build_network()
 
 print("\nLoading database...\n")
 print("positive images...")
@@ -62,7 +82,7 @@ labels = [1] * nb_of_positives
 for i in range(nb_of_negatives):
     labels.append(0)
 
-model = load_model("../files/neural_networks/jooj")
+#model = load_model("../files/neural_networks/jooj")
 
 positives_to_train = int(nb_of_positives * 0.9)
 negatives_to_train = int(nb_of_negatives * 0.9)
@@ -78,16 +98,15 @@ testing_labels = np.concatenate([labels[positives_to_train:nb_of_positives], lab
 
 model.fit(training_samples,training_labels)
 
-print(training_labels[0])
 print("Network trained.")
 
 answer = model.predict(testing_samples)
 
 print(labels)
-#print(answer)
+print(answer)
 #print("we wnated")
 #print(testing_labels)
-"""
+
 error = sum( abs(max(answer[i])-testing_labels[i]) for i in range(len(answer)) )
 
 
