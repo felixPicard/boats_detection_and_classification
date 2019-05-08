@@ -16,12 +16,12 @@ class ImageMaker(Sequence):
 
         batch_paths = self.paths[idx * self.batch_size : (idx+1) * self.batch_size]
 
-        out_images = np.zeros((self.batch_size, 75, 150, 3))
+        out_images = np.zeros((self.batch_size, 150, 300, 3))
         out_labels = np.zeros((self.batch_size, 2))
 
         for i in range(self.batch_size):
             img_temp = cv.imread(batch_paths[i])
-            out_images[i] = cv.resize(img_temp, (150, 75))
+            out_images[i] = cv.resize(img_temp, (300, 150))
             if batch_paths[i][22] == 'p':
                 out_labels[i] = np.array([1,0])
             else:
