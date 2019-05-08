@@ -4,10 +4,13 @@ from keras.layers import Convolution2D
 from keras.layers import MaxPooling2D
 from keras.layers import Flatten
 from keras.layers import Dense
+from ImageMaker import ImageMaker
 import cv2 as cv
 import random
+import os
 import numpy as np
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 def build_network():
     model = Sequential()
@@ -21,82 +24,58 @@ def build_network():
     model.add(Flatten())
 
     model.add(Dense(units = 128, activation= 'relu'))
-    model.add(Dense(units=1, activation = 'softmax'))
+    model.add(Dense(units=2, activation = 'softmax'))
 
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-    #model.save("../files/neural_networks/jooj")
+    model.save("../files/neural_networks/jooj")
 
     return model
 
 
-def get_images(nb_of_pos, pos_path, nb_of_neg, neg_path):
+def get_all_paths(pos_path, neg_path):
 
     pos_file = open("../files/data_samples/" + pos_path + ".txt", 'r')
     neg_file = open("../files/data_samples/" + neg_path + ".txt", 'r')
 
-    pos_maximum = 0
-    neg_maximum = 0
-
-    pos_paths = []
-    neg_paths = []
+    paths = []
 
     for line in pos_file:
-        pos_maximum += 1
-        pos_paths.append("../files/data_samples/" + line[2:-1])
-        if pos_maximum > nb_of_pos:
-            break
+        paths.append("../files/data_samples/" + line[2:-1])
 
     for line in neg_file:
-        neg_maximum += 1
-        neg_paths.append("../files/data_samples/" + line[2:-1])
-        if neg_maximum > nb_of_neg:
-            break
+        paths.append("../files/data_samples/" + line[2:-1])
 
-    if nb_of_pos > pos_maximum or nb_of_neg > neg_maximum:
-        exit(-1)
-
-    nb_of_images_to_read = nb_of_neg + nb_of_pos
-
-    out_images = np.zeros((nb_of_images_to_read, 75, 150, 3))
-
-    for i in range(nb_of_pos):
-        img_temp = cv.imread(pos_paths[i])
-        out_images[i] = cv.resize(img_temp, (150, 75))
-
-    for i in range(nb_of_neg):
-        img_temp = cv.imread(neg_paths[i])
-        out_images[i+nb_of_pos] = cv.resize(img_temp, (150, 75))
-
-
-    return out_images
+    return paths
 
 
 def get_labels(nb_of_positives, nb_of_negatives):
 
-    labels = [1] * nb_of_positives
+    labels = [[1,0]] * nb_of_positives
 
     for i in range(nb_of_negatives):
-        labels.append(0)
+        labels.append([0,1])
 
-    return labels
+    return np.asarray(labels)
 
 
-model = build_network()
+# user parameters
+new_network = False
 
-nb_of_positives = 200
-nb_of_negatives = 200
-nb_of_samples = nb_of_negatives + nb_of_positives
+if new_network:
+    model = build_network()
+else:
+    model = load_model("../files/neural_networks/jooj")
 
 print("Loading dataset...")
+paths = get_all_paths("positives", "negatives")
+random.shuffle(paths)
+imageMaker = ImageMaker(paths, batch_size=20)
 
-samples = get_images(200, "positives", 200, "negatives")
+nb_of_epochs = int(np.ceil(len(paths)/200))
+print("number of epochs : ", nb_of_epochs)
 
-print(nb_of_positives, "positives, ", nb_of_negatives, "negatives, ", nb_of_samples, "total")
+model.fit_generator(imageMaker, steps_per_epoch=10, epochs=nb_of_epochs, verbose=1)
 
-labels = get_labels(nb_of_positives, nb_of_negatives)
-
-#model = load_model("../files/neural_networks/jooj")
-
-model.fit(samples,labels, shuffle=True)
+model.save("../files/neural_networks/jeej")
 
 print("Network trained.")
