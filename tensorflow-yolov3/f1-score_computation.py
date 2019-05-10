@@ -23,8 +23,8 @@ classification_table = ["Ferry", "Buoy", "Vessel/ship", "Speed boat", "Boat", "K
 
 
 # user variables
-data = loadmat("../files/0799.mat")
-video_path = "../files/videos/0799.avi"
+data_paths = ["../files/0799.mat", "../files/0797.mat", "../files/0801.mat"]
+video_paths = ["../files/videos/0799.avi", "../files/videos/0797.avi", "../files/videos/0801.avi"]
 threshold = 0.75
 REAL_H, REAL_W = 1080, 1920
 
@@ -87,7 +87,7 @@ def score_values(GT_boxes, boxes):
 
         if iou[max_iou] > 0.5:
             TP += 1
-            del boxes[max_iou]
+            boxes = np.delete(boxes, max_iou, 0)
         else:
             FN += 1
 
@@ -96,22 +96,13 @@ def score_values(GT_boxes, boxes):
     return FN, FP, TP
 
 
-def f1_score(GT_boxes, boxes):
+def status(i, max):
 
-    FN, FP, TP = score_values(GT_boxes, boxes)
-
-    if len(GT_boxes) == 0 and len(boxes) == 0:
-        return 1
-    if len(boxes) == 0 or len(GT_boxes) == 0:
-        return 0
-
-    precision = TP / float(TP + FP)
-    recall = TP / float(TP + FN)
-
-    if TP == 0:
-        return 0
-
-    return 2 * precision * recall / (precision + recall)
+    decades = float(i) / max * 10
+    decades = int(decades)
+    out = "[" + "="*decades
+    out += " "*(10-decades) + "]"
+    return out
 
 def yolo(current_frame):
 
@@ -127,70 +118,77 @@ def yolo(current_frame):
 
 
 
-nb_of_frames = len(data['structXML'][0])
-print("number of frames : ", nb_of_frames, ", meaning (30fps) : ", float(nb_of_frames)/30)
 
-# frame_data[i] = xmlData of the i-th frame
-frame_data = data['structXML'][0]
-
-vid = cv2.VideoCapture(video_path)
-i = 0
 
 with tf.Session() as sess:
 
-    f1 = 0
+    FN, FP, TP = 0, 0, 0
+    count_of_frames = 0
 
-    while True:
-        return_value, frame = vid.read()
-        if not return_value:
-            exit(-1)
+    for data_nb in range(len(video_paths)):
 
+        print( "GT_" + video_paths[data_nb][-8:])
 
-        prediction_boxes, scores, labels = yolo(frame)
+        i = 0
+        data = loadmat(data_paths[data_nb])
+        video_path = video_paths[data_nb]
 
-        if prediction_boxes is None:
-            prediction_boxes = []
+        print("\nCurrent source : ", video_path)
 
-        for j in range(len(prediction_boxes)):
-            if labels[j] != 8:
-                del prediction_boxes[j]
+        vid = cv2.VideoCapture(video_path)
+        xFps = vid.get(cv2.CAP_PROP_FPS)
 
-
-        gt_boxes = []
-        # computed boxes are not in the right shape
-        original_size_boxes = real_boxes_size(prediction_boxes)
-
-        if frame_data[i]['BB'].any():
-
-            for j in range(len(frame_data[i]['BB'])):
-
-                id = frame_data[i]['BB'][j] + 1
-                x1 = int(id[0])
-                y1 = int(id[1])
-                x2 = int(id[0] + id[2])
-                y2 = int(id[1] + id[3])
+        # Define the codec and create VideoWriter object
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter( "GT_" + video_paths[data_nb][-8:], fourcc, xFps, (1920, 1080))
 
 
-                gt_boxes.append([x1, y1, x2, y2])
+        nb_of_frames = len(data['structXML'][0])
+        print("number of frames : ", nb_of_frames, ", meaning (30fps) : ", float(nb_of_frames) / 30)
+
+        #  frame_data[i] = xmlData of the i-th frame
+        frame_data = data['structXML'][0]
+
+        f1_temp = 0
+        stored_advance = 0
+
+        while True:
+
+            return_value, frame = vid.read()
+            if not return_value:
+                break
 
 
-            for gt_box in gt_boxes:
-                cv2.rectangle(frame, (gt_box[0], gt_box[1]), (gt_box[2], gt_box[3]), (255,255,255), 3)
+            gt_boxes = []
 
-            for prediction_box in prediction_boxes:
-                cv2.rectangle(frame, (prediction_box[0], prediction_box[1]), (prediction_box[2], prediction_box[3]), (0, 255, 0), 3)
+            if frame_data[i]['BB'].any():
 
-            f1 += f1_score(prediction_boxes, gt_boxes)
+                for j in range(len(frame_data[i]['BB'])):
 
-        cv2.namedWindow("jaaj")
-        cv2.imshow("jaaj", frame)
-        i+=1
-        if cv2.waitKey(1) & 0xFF == ord('q'): break
+                    id = frame_data[i]['BB'][j] + 1
+                    x1 = int(id[0])
+                    y1 = int(id[1])
+                    x2 = int(id[0] + id[2])
+                    y2 = int(id[1] + id[3])
 
-        print(float(i)/ nb_of_frames * 100, "% done, f1_int = ", f1/i)
 
-    print("f1 average score on ", i , " images : ", f1/i)
+                    gt_boxes.append([x1, y1, x2, y2])
+
+
+                for gt_box in gt_boxes:
+                    cv2.rectangle(frame, (gt_box[0], gt_box[1]), (gt_box[2], gt_box[3]), (255,255,255), 3)
+
+
+            i+=1
+
+
+            out.write(frame)
+            cv2.namedWindow("jaaj")
+            cv2.imshow("jaaj", frame)
+            if cv2.waitKey(1) == ord('q'): break
+
+        out.release()
+        vid.release()
 
     cv2.destroyAllWindows()
 
-vid.release()
